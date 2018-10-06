@@ -8,6 +8,8 @@
 * Disclosed: 5/14/18
 * Researcher: Carl Pearson
 * CVE: TBD
+* Reference: https://cp270.wordpress.com/2018/05/14/war-story-password-resets/
+* Reference: https://github.com/articaST/integriaims/commit/f2ff0ba821644acecb893483c86a9c4d3bb75047
 
 !!!! DO NOT USE without proper authorization !!!!
 
